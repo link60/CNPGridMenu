@@ -132,6 +132,10 @@
 
 #pragma mark - UICollectionView Delegate & DataSource
 
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
+    return self.menuItems.count;
+}
+
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
     CNPGridMenuCell * cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"GridMenuCell" forIndexPath:indexPath];
     CNPGridMenuItem *item = [self.menuItems objectAtIndex:indexPath.row];
@@ -139,15 +143,37 @@
     cell.blurEffectStyle = self.blurEffectStyle;
     cell.menuItem = item;
     [cell.menuItem addObserver:cell forKeyPath:@"disabled" options:NSKeyValueObservingOptionNew context:NULL];
-    cell.iconView.image = [item.icon imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     cell.titleLabel.text = item.title;
     cell.backgroundColor = [UIColor clearColor];
     cell.contentView.backgroundColor = [UIColor clearColor];
+    
+    if(item.iconURL) {
+        NSURL *url = [NSURL URLWithString:item.iconURL];
+        [self downloadImageWithURL:url completionBlock:^(BOOL succeeded, UIImage *image) {
+            cell.iconView.image = image;
+        }];
+        
+    } else {
+        cell.iconView.image = item.icon;
+    }
+    
     return cell;
 }
 
-- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
-    return self.menuItems.count;
+
+- (void)downloadImageWithURL:(NSURL *)url completionBlock:(void (^)(BOOL succeeded, UIImage *image))completionBlock
+{
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    [NSURLConnection sendAsynchronousRequest:request queue:[NSOperationQueue mainQueue]
+                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
+                               if ( !error )
+                               {
+                                   UIImage *image = [[UIImage alloc] initWithData:data];
+                                   completionBlock(YES, image);
+                               } else{
+                                   completionBlock(NO, nil);
+                               }
+                           }];
 }
 
 #pragma mark - UITapGestureRecognizer Delegate 
